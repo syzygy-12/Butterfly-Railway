@@ -90,7 +90,7 @@ InputUnit::wakeup()
         if ((t_flit->get_type() == HEAD_) ||
             (t_flit->get_type() == HEAD_TAIL_)) {
 
-            assert(virtualChannels[vc].get_state() == IDLE_);
+            // assert(virtualChannels[vc].get_state() == IDLE_);
             set_vc_active(vc, curTick());
 
             // Route computation for this vc

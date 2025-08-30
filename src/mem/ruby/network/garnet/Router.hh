@@ -89,6 +89,7 @@ class Router : public BasicRouter, public Consumer
     int get_num_inports()   { return m_input_unit.size(); }
     int get_num_outports()  { return m_output_unit.size(); }
     int get_id()            { return m_id; }
+    bool isWormholeEnabled()     { return m_network_ptr->isWormholeEnabled(); }
 
     void init_net_ptr(GarnetNetwork* net_ptr)
     {

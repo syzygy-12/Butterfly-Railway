@@ -112,6 +112,12 @@ def define_options(parser):
         help="network-level deadlock threshold.",
     )
     parser.add_argument(
+        "--wormhole",
+        action="store_true",
+        default=False,
+        help="enable wormhole flow-control.",
+    )
+    parser.add_argument(
         "--simple-physical-channels",
         action="store_true",
         default=False,
@@ -169,6 +175,12 @@ def init_network(options, network, InterfaceClass):
         network.ni_flit_size = options.link_width_bits / 8
         network.routing_algorithm = options.routing_algorithm
         network.garnet_deadlock_threshold = options.garnet_deadlock_threshold
+        network.wormhole = options.wormhole
+        if (options.wormhole):
+            print("Wormhole flow-control enabled for Garnet network._________________________________________________________________________")
+            # Set buffer sizes for wormhole flow-control
+            network.buffers_per_data_vc = 16
+            network.buffers_per_ctrl_vc = 16
 
         # Create Bridges and connect them to the corresponding links
         for intLink in network.int_links:

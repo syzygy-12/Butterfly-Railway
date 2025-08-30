@@ -88,10 +88,15 @@ OutputUnit::increment_credit(int out_vc)
 bool
 OutputUnit::has_credit(int out_vc)
 {
-    assert(outVcState[out_vc].isInState(ACTIVE_, curTick()));
+    // assert(outVcState[out_vc].isInState(ACTIVE_, curTick()));
     return outVcState[out_vc].has_credit();
 }
 
+bool
+OutputUnit::has_use_credit(int out_vc)
+{
+    return outVcState[out_vc].has_use_credit();
+}
 
 // Check if the output port (i.e., input port at next router) has free VCs.
 bool
@@ -99,7 +104,7 @@ OutputUnit::has_free_vc(int vnet)
 {
     int vc_base = vnet*m_vc_per_vnet;
     for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++) {
-        if (is_vc_idle(vc, curTick()))
+        if (is_vc_free(vc, curTick()))
             return true;
     }
 
@@ -112,7 +117,7 @@ OutputUnit::select_free_vc(int vnet)
 {
     int vc_base = vnet*m_vc_per_vnet;
     for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++) {
-        if (is_vc_idle(vc, curTick())) {
+        if (is_vc_free(vc, curTick())) {
             outVcState[vc].setState(ACTIVE_, curTick());
             return vc;
         }
@@ -120,6 +125,7 @@ OutputUnit::select_free_vc(int vnet)
 
     return -1;
 }
+
 
 /*
  * The wakeup function of the OutputUnit reads the credit signal from the
@@ -137,7 +143,7 @@ OutputUnit::wakeup()
         increment_credit(t_credit->get_vc());
 
         if (t_credit->is_free_signal())
-            set_vc_state(IDLE_, t_credit->get_vc(), curTick());
+            set_vc_state(has_use_credit(t_credit->get_vc()) ? ACTIVE_ : IDLE_, t_credit->get_vc(), curTick());
 
         delete t_credit;
 

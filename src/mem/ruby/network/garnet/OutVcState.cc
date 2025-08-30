@@ -54,10 +54,27 @@ OutVcState::OutVcState(int id, GarnetNetwork *network_ptr,
      */
     int vnet = floor(id/consumerVcs);
 
-    if (network_ptr->get_vnet_type(vnet) == DATA_VNET_)
-        m_max_credit_count = network_ptr->getBuffersPerDataVC();
-    else
-        m_max_credit_count = network_ptr->getBuffersPerCtrlVC();
+    if (network_ptr->get_vnet_type(vnet) == DATA_VNET_) {
+        if (network_ptr->isWormholeEnabled()) {
+            // When wormhole is enabled, allow up to 16 single-flit packets
+            m_max_credit_count = 16;
+            // print something
+            // std::cout << "Wormhole enabled for data VCs, max credit count: "
+            //           << m_max_credit_count << std::endl;
+        } else {
+            m_max_credit_count = network_ptr->getBuffersPerDataVC();
+        }
+    } else {
+        if (network_ptr->isWormholeEnabled()) {
+            // When wormhole is enabled for control VCs as well
+            m_max_credit_count = 16;
+            // print something
+            // std::cout << "Wormhole enabled for data VCs, max credit count: "
+            //           << m_max_credit_count << std::endl;
+        } else {
+            m_max_credit_count = network_ptr->getBuffersPerCtrlVC();
+        }
+    }
 
     m_credit_count = m_max_credit_count;
     assert(m_credit_count >= 1);
@@ -67,6 +84,8 @@ void
 OutVcState::increment_credit()
 {
     m_credit_count++;
+    // std::cout << "Incremented credit for VC " << m_id
+    //           << ", new count: " << m_credit_count << std::endl;
     assert(m_credit_count <= m_max_credit_count);
 }
 
@@ -74,6 +93,8 @@ void
 OutVcState::decrement_credit()
 {
     m_credit_count--;
+    // std::cout << "Decremented credit for VC " << m_id
+    //           << ", new count: " << m_credit_count << std::endl;
     assert(m_credit_count >= 0);
 }
 

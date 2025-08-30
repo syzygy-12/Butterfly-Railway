@@ -73,6 +73,11 @@ class RoutingUnit
                          int inport,
                          PortDirection inport_dirn);
 
+                         
+    int outportComputeRing(RouteInfo route,
+                         int inport,
+                         PortDirection inport_dirn);
+
     // Custom Routing Algorithm using Port Directions
     int outportComputeCustom(RouteInfo route,
                              int inport,

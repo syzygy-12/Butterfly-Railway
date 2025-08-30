@@ -193,6 +193,8 @@ RoutingUnit::outportCompute(RouteInfo route, int inport,
         // any custom algorithm
         case CUSTOM_: outport =
             outportComputeCustom(route, inport, inport_dirn); break;
+        case RING_:   outport =
+            outportComputeRing(route, inport, inport_dirn); break;
         default: outport =
             lookupRoutingTable(route.vnet, route.net_dest); break;
     }
@@ -255,6 +257,36 @@ RoutingUnit::outportComputeXY(RouteInfo route,
         // this is not possible
         // already checked that in outportCompute() function
         panic("x_hops == y_hops == 0");
+    }
+
+    return m_outports_dirn2idx[outport_dirn];
+}
+
+int
+RoutingUnit::outportComputeRing(RouteInfo route,
+                                int inport,
+                                PortDirection inport_dirn)
+{
+
+    PortDirection outport_dirn = "Unknown";
+
+    int num_routers = m_router->get_net_ptr()->getNumRouters();
+    int my_id = m_router->get_id();
+    int dest_id = route.dest_router;
+
+    assert(my_id != dest_id);
+
+    // Compute distance in clockwise and counterclockwise
+    int cw_dist  = (dest_id - my_id + num_routers) % num_routers;
+    int ccw_dist = (my_id - dest_id + num_routers) % num_routers;
+
+    // Pick shorter path (ties -> clockwise)
+    if (cw_dist <= ccw_dist) {
+        assert(inport_dirn == "Local" || inport_dirn == "CounterClockwise");
+        outport_dirn = "Clockwise";
+    } else {
+        assert(inport_dirn == "Local" || inport_dirn == "Clockwise");
+        outport_dirn = "CounterClockwise";
     }
 
     return m_outports_dirn2idx[outport_dirn];
