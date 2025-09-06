@@ -195,6 +195,15 @@ RoutingUnit::outportCompute(RouteInfo route, int inport,
             outportComputeCustom(route, inport, inport_dirn); break;
         case RING_:   outport =
             outportComputeRing(route, inport, inport_dirn); break;
+        case TORUS_3D_: outport =
+            outportComputeTorus3D(route, inport, inport_dirn); break;
+        case TORUS_3D_ADAPTIVE_: outport = 
+            outportComputeTorus3DAdaptive(route, inport, inport_dirn); break;
+        case BUTTERFLY_: outport =
+            outportComputeButterfly(route, inport, inport_dirn); break;
+        case BUTTERFLY_RAILWAY_: outport =
+            outportComputeButterflyRailway(route, inport, inport_dirn); 
+            break;
         default: outport =
             lookupRoutingTable(route.vnet, route.net_dest); break;
     }
@@ -290,6 +299,238 @@ RoutingUnit::outportComputeRing(RouteInfo route,
     }
 
     return m_outports_dirn2idx[outport_dirn];
+}
+
+int
+RoutingUnit::outportComputeTorus3D(RouteInfo route,
+                                   int inport,
+                                   PortDirection inport_dirn)
+{
+    PortDirection outport_dirn = "Unknown";
+
+    // Get topology dimensions
+    int kx = 4;
+    int ky = 4;
+    int kz = 4;
+    assert(kx > 0 && ky > 0 && kz > 0);
+
+    // My coordinates
+    int my_id = m_router->get_id();
+    int my_x =  my_id % kx;
+    int my_y = (my_id / kx) % ky;
+    int my_z =  my_id / (kx * ky);
+
+    // Destination coordinates
+    int dest_id = route.dest_router;
+    int dest_x =  dest_id % kx;
+    int dest_y = (dest_id / kx) % ky;
+    int dest_z =  dest_id / (kx * ky);
+
+    // Sanity: not same router
+    assert(my_id != dest_id);
+
+    //----------------------
+    // Compute torus deltas
+    //----------------------
+    auto torus_delta = [](int cur, int dest, int dim) {
+        int d = (dest - cur + dim) % dim;
+        int forward = d;
+        int backward = dim - d;
+        // return {dist, dir}: dir = +1 → positive, -1 → negative
+        if (forward <= backward)
+            return std::make_pair(forward, +1);
+        else
+            return std::make_pair(backward, -1);
+    };
+
+    auto [dx, dir_x] = torus_delta(my_x, dest_x, kx);
+    auto [dy, dir_y] = torus_delta(my_y, dest_y, ky);
+    auto [dz, dir_z] = torus_delta(my_z, dest_z, kz);
+
+    //----------------------
+    // XYZ dimension order
+    //----------------------
+    //----------------------
+    // Dimension-order (X -> Y -> Z) deterministic minimal routing
+    // This function is intended for DOR-like (escape VC) behavior.
+    // It returns a single outport dirn among PosX/NegX/PosY/NegY/PosZ/NegZ.
+    // We intentionally DO NOT assert on inport_dirn string values here because
+    // torus wrap-around and multi-hop can produce many legal inport_dirn values.
+    //----------------------
+    if (dx > 0) {
+        if (dir_x > 0) {
+            outport_dirn = "PosX";
+        } else {
+            outport_dirn = "NegX";
+        }
+    } else if (dy > 0) {
+        if (dir_y > 0) {
+            outport_dirn = "PosY";
+        } else {
+            outport_dirn = "NegY";
+        }
+    } else if (dz > 0) {
+        if (dir_z > 0) {
+            outport_dirn = "PosZ";
+        } else {
+            outport_dirn = "NegZ";
+        }
+    } else {
+        // should not happen because we asserted my_id != dest_id earlier
+        panic("RoutingUnit::outportComputeTorus3D: already at destination?");
+    }
+
+    return m_outports_dirn2idx[outport_dirn];
+}
+
+int
+RoutingUnit::outportComputeTorus3DAdaptive(RouteInfo route, int inport,
+                                           PortDirection inport_dirn)
+{
+    int kx = 4;
+    int ky = 4;
+    int kz = 4;
+
+    int cur_id = m_router->get_id();
+    int cur_x = cur_id % kx;
+    int cur_y = (cur_id / kx) % ky;
+    int cur_z = cur_id / (kx * ky);
+
+    int dest_x = route.dest_router % kx;
+    int dest_y = (route.dest_router / kx) % ky;
+    int dest_z = route.dest_router / (kx * ky);
+
+    int dx = dest_x - cur_x;
+    int dy = dest_y - cur_y;
+    int dz = dest_z - cur_z;
+
+    // wrap-around for torus distances
+    auto wrap = [](int d, int k) {
+        if (d > k/2) d -= k;
+        if (d < -k/2) d += k;
+        return d;
+    };
+    dx = wrap(dx, kx);
+    dy = wrap(dy, ky);
+    dz = wrap(dz, kz);
+
+    // -------------------------------
+    // Step 1: already at destination
+    // -------------------------------
+    if (dx == 0 && dy == 0 && dz == 0) {
+        return m_outports_dirn2idx["Local"];
+    }
+
+    // -------------------------------
+    // Step 2: choose a plane
+    // -------------------------------
+    std::vector<PortDirection> candidates;
+
+    if (dx != 0 || dy != 0) {
+        // XY plane
+        if (dx > 0) candidates.push_back("PosX");
+        if (dx < 0) candidates.push_back("NegX");
+        if (dy > 0) candidates.push_back("PosY");
+        if (dy < 0) candidates.push_back("NegY");
+    } else {
+        // Z plane only
+        if (dz > 0) candidates.push_back("PosZ");
+        if (dz < 0) candidates.push_back("NegZ");
+    }
+
+    // -------------------------------
+    // Step 3: simple adaptive choice
+    // -------------------------------
+    PortDirection chosen_dir;
+    if (candidates.size() == 1) {
+        chosen_dir = candidates[0];
+    } else {
+        // pick one of the productive directions randomly
+        int idx = random() % candidates.size();
+        chosen_dir = candidates[idx];
+    }
+
+    DPRINTF(RubyNetwork, "Router[%d]: Adaptive (simple) route -> %s\n",
+            m_router->get_id(), chosen_dir.c_str());
+
+    return m_outports_dirn2idx[chosen_dir];
+}
+
+int
+RoutingUnit::outportComputeButterfly(RouteInfo route,
+                                     int inport,
+                                     PortDirection inport_dirn)
+{
+    int my_id   = m_router->get_id();
+    int num_routers = m_router->get_net_ptr()->getNumRouters();
+    int k = 0;
+    while ((1 << k) < num_routers) ++k;          // 级数 k
+    assert(my_id >= 0 && my_id < num_routers);
+
+    int dest_id = route.dest_router;
+    assert(dest_id >= 0 && dest_id < num_routers);
+
+    if (dest_id == my_id) {                      // 已到达目的
+        return m_outports_dirn2idx["Local"];
+    }
+
+    /* 找到最高不同位，即当前应处理的 stage */
+    int diff = my_id ^ dest_id;
+    int stage = k - 1;
+    while (stage >= 0 && !(diff & (1 << stage))) --stage;
+    assert(stage >= 0);                          // 必有不同位
+
+    /* 看 dest 在该 bit 的值决定上下 */
+    int dest_bit = (dest_id >> stage) & 1;
+    std::string outport_dirn = dest_bit ? "Up_s" + std::to_string(stage)
+                                        : "Down_s"   + std::to_string(stage);
+
+    int butterfly_port = m_outports_dirn2idx[outport_dirn];
+    return butterfly_port;
+}
+
+int
+RoutingUnit::outportComputeButterflyRailway(RouteInfo route,
+                                     int inport,
+                                     PortDirection inport_dirn)
+{
+    int my_id   = m_router->get_id();
+    int num_routers = m_router->get_net_ptr()->getNumRouters();
+    int k = 0;
+    while ((1 << k) < num_routers) ++k;          // 级数 k
+    assert(my_id >= 0 && my_id < num_routers);
+
+    int dest_id = route.dest_router;
+    assert(dest_id >= 0 && dest_id < num_routers);
+
+    if (dest_id == my_id) {                      // 已到达目的
+        return m_outports_dirn2idx["Local"];
+    }
+
+    /* 找到最高不同位，即当前应处理的 stage */
+    int diff = my_id ^ dest_id;
+    int stage = k - 1;
+    while (stage >= 0 && !(diff & (1 << stage))) --stage;
+    assert(stage >= 0);                          // 必有不同位
+
+    /* 看 dest 在该 bit 的值决定上下 */
+    int dest_bit = (dest_id >> stage) & 1;
+    std::string outport_dirn = dest_bit ? "Up_s" + std::to_string(stage)
+                                        : "Down_s"   + std::to_string(stage);
+
+    int butterfly_port = m_outports_dirn2idx[outport_dirn];
+    int railway_port = m_outports_dirn2idx[my_id < dest_id ? "Right": "Left"];
+
+    int butterfly_credit = m_router->countRequestsForPort(butterfly_port);
+    int railway_credit = m_router->countRequestsForPort(railway_port);
+
+    int h = butterfly_credit - railway_credit;
+    // DPRINTF(RubyNetwork, "Router[%d]: Butterfly = %d, Railway = %d\n",
+    //         m_router->get_id(), butterfly_credit, railway_credit);
+    // change to cout version
+    // std::cout << "Router[" << m_router->get_id() << "]: Butterfly = " << butterfly_credit
+    //           << ", Railway = " << railway_credit << std::endl;
+    return h <= 0? butterfly_port : railway_port;
 }
 
 // Template for implementing custom routing algorithm

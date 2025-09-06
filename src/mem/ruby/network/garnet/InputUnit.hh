@@ -62,7 +62,8 @@ class InputUnit : public Consumer
     void print(std::ostream& out) const {};
 
     inline PortDirection get_direction() { return m_direction; }
-
+    VirtualChannel& getVirtualChannel(int vc) { return virtualChannels[vc]; }
+    int getVcsPerVnet() const { return m_vc_per_vnet; }
     inline void
     set_vc_idle(int vc, Tick curTime)
     {

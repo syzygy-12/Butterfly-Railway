@@ -236,6 +236,38 @@ GarnetSyntheticTraffic::generatePkt()
         dest_x = (src_x + (int) ceil(radix/2) - 1) % radix;
         dest_y = src_y;
         destination = dest_y*radix + dest_x;
+    } else if (traffic == HOTSPOT_) {
+        // I want a fixed set of hotspot nodes with different rates, no need 
+        // for parsing args to seek them.
+        std::vector<unsigned> hotspot_nodes = {0, 15, 63};
+        std::vector<double> hotspot_rate = {0.5, 0.3, 0.2};
+        // Example:
+        // hotspot_nodes = 0,15,63
+        // hotspot_rate = 0.5,0.3,0.2
+
+        assert(hotspot_nodes.size() == hotspot_rate.size());
+
+        double rand_val = random_mt.random<double>();
+        double cumulative_rate = 0.0;
+        bool is_hotspot = false;
+
+        for (size_t i = 0; i < hotspot_nodes.size(); ++i) {
+            cumulative_rate += hotspot_rate[i];
+            if (rand_val < cumulative_rate) {
+                destination = hotspot_nodes[i];
+                is_hotspot = true;
+                break;
+            }
+        }
+
+        if (!is_hotspot) {
+            // If not a hotspot, choose a random destination
+            // excluding hotspots
+            do {
+                destination = random_mt.random<unsigned>(0, num_destinations - 1);
+            } while (std::find(hotspot_nodes.begin(), hotspot_nodes.end(),
+                 destination) != hotspot_nodes.end());
+        }
     }
     else {
         fatal("Unknown Traffic Type: %s!\n", traffic);
@@ -334,6 +366,7 @@ GarnetSyntheticTraffic::initTrafficType()
     trafficStringToEnum["tornado"] = TORNADO_;
     trafficStringToEnum["transpose"] = TRANSPOSE_;
     trafficStringToEnum["uniform_random"] = UNIFORM_RANDOM_;
+    trafficStringToEnum["hotspot"] = HOTSPOT_;
 }
 
 void

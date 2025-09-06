@@ -176,8 +176,10 @@ def init_network(options, network, InterfaceClass):
         network.routing_algorithm = options.routing_algorithm
         network.garnet_deadlock_threshold = options.garnet_deadlock_threshold
         network.wormhole = options.wormhole
-        if (options.wormhole):
-            print("Wormhole flow-control enabled for Garnet network._________________________________________________________________________")
+        if options.wormhole:
+            print(
+                "Wormhole flow-control enabled for Garnet network._________________________________________________________________________"
+            )
             # Set buffer sizes for wormhole flow-control
             network.buffers_per_data_vc = 16
             network.buffers_per_ctrl_vc = 16

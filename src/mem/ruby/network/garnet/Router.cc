@@ -68,6 +68,31 @@ Router::init()
     crossbarSwitch.init();
 }
 
+int Router::getMinCredit(OutputUnit* output_unit) {
+    int min_credit = INT_MAX;
+    int vcs = output_unit->getVcsPerVnet();
+    for (int vc = 0; vc < vcs; ++vc) {
+        int credit = output_unit->get_credit_count(vc);
+        if (credit < min_credit) {
+            min_credit = credit;
+        }
+    }
+    return min_credit;
+}
+
+int Router::countRequestsForPort(int outport) {
+    int count = 0;
+    for (auto& input_unit : m_input_unit) {
+        for (int vc = 0; vc < input_unit->getVcsPerVnet(); ++vc) {
+            // 判断 input_unit 的 VC 是否请求 outport
+            if (input_unit->getVirtualChannel(vc).get_outport() == outport) {
+                count++;
+            }
+        }
+    }
+    return count;
+}
+
 void
 Router::wakeup()
 {

@@ -50,7 +50,8 @@ class OutVcState
 
     int get_credit_count()          { return m_credit_count; }
     inline bool has_credit()       { return (m_credit_count > 0); }
-    inline bool has_use_credit()   { return (m_credit_count < m_max_credit_count); }
+    inline bool has_use_credit()
+      { return (m_credit_count < m_max_credit_count); }
     void increment_credit();
     void decrement_credit();
 

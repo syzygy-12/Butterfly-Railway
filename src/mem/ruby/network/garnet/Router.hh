@@ -71,6 +71,8 @@ class Router : public BasicRouter, public Consumer
 
     ~Router() = default;
 
+    int getMinCredit(OutputUnit* output_unit);
+    int countRequestsForPort(int outport);
     void wakeup();
     void print(std::ostream& out) const {};
 

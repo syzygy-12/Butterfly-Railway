@@ -73,10 +73,26 @@ class RoutingUnit
                          int inport,
                          PortDirection inport_dirn);
 
-                         
+
     int outportComputeRing(RouteInfo route,
                          int inport,
                          PortDirection inport_dirn);
+
+    int outportComputeTorus3D(RouteInfo route,
+                         int inport,
+                         PortDirection inport_dirn);
+
+    int outportComputeTorus3DAdaptive(RouteInfo route,
+                         int inport,
+                         PortDirection inport_dirn);
+
+    int outportComputeButterfly(RouteInfo route,
+                         int inport,
+                         PortDirection inport_dirn);
+
+    int outportComputeButterflyRailway(RouteInfo route,
+                       int inport,
+                       PortDirection inport_dirn);
 
     // Custom Routing Algorithm using Port Directions
     int outportComputeCustom(RouteInfo route,

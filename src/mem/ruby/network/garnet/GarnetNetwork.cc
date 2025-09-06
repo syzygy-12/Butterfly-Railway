@@ -35,7 +35,7 @@
 
 #include "base/cast.hh"
 #include "base/compiler.hh"
-#include "base/stats/units.hh" 
+#include "base/stats/units.hh"
 #include "debug/RubyNetwork.hh"
 #include "mem/ruby/common/NetDest.hh"
 #include "mem/ruby/network/MessageBuffer.hh"
@@ -457,7 +457,8 @@ GarnetNetwork::regStats()
 
     m_avg_packet_queueing_latency
         .name(name() + ".average_packet_queueing_latency")
-        .desc("Average queueing latency per packet across all virtual networks")
+        .desc("Average queueing latency per packet \
+             across all virtual networks")
         .unit(UNIT_RATE(Cycle, Count));
     m_avg_packet_queueing_latency
         = sum(m_packet_queueing_latency) / sum(m_packets_received);
@@ -550,7 +551,7 @@ GarnetNetwork::regStats()
     // Hops
     m_avg_hops.name(name() + ".average_hops");
     m_avg_hops.desc("Average number of hops per flit");
-    m_avg_hops.unit(UNIT_RATE(Count, Count));  // hops/flit，hops和flit都用Count单位表示数量
+    m_avg_hops.unit(UNIT_RATE(Count, Count));
     m_avg_hops = m_total_hops / sum(m_flits_received);
 
     // Links
@@ -592,13 +593,15 @@ GarnetNetwork::regStats()
 
             data_packets->name(name() + ".data_traffic_distribution." + "n" +
                     std::to_string(source) + "." + "n" + std::to_string(dest));
-            data_packets->desc("Number of data packets from source to destination router");
+            data_packets->desc("Number of data packets from \
+                source to destination router");
             data_packets->unit(UNIT_COUNT);
             m_data_traffic_distribution[source].push_back(data_packets);
 
             ctrl_packets->name(name() + ".ctrl_traffic_distribution." + "n" +
                     std::to_string(source) + "." + "n" + std::to_string(dest));
-            ctrl_packets->desc("Number of control packets from source to destination router");
+            ctrl_packets->desc("Number of control packets from \
+                 source to destination router");
             ctrl_packets->unit(UNIT_COUNT);
             m_ctrl_traffic_distribution[source].push_back(ctrl_packets);
         }

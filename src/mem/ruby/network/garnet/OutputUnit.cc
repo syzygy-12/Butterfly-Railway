@@ -143,7 +143,8 @@ OutputUnit::wakeup()
         increment_credit(t_credit->get_vc());
 
         if (t_credit->is_free_signal())
-            set_vc_state(has_use_credit(t_credit->get_vc()) ? ACTIVE_ : IDLE_, t_credit->get_vc(), curTick());
+            set_vc_state(has_use_credit(t_credit->get_vc()) ?
+                ACTIVE_ : IDLE_, t_credit->get_vc(), curTick());
 
         delete t_credit;
 
